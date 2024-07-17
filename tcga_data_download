@@ -1,0 +1,76 @@
+#script to download data from TCGA using TCGAbiolinks
+#refer to bioconductor search for install package codes; TCGAbiolinks, tidyverse, maftools, SummarizedExperiment, sesameData, sesame
+
+#download libraries
+
+library(TCGAbiolinks)
+library(tidyverse)
+library(maftools)
+library(SummarizedExperiment)
+library(sesameData)
+library(sesame)
+
+#get a list of projects and filter out for your primary objective (TCGA-HNSC)
+gdcprojects <- getGDCprojects()
+getProjectSummary('TCGA-HNSC')
+
+# building a query
+query_TCGA <-GDCquery(project= 'TCGA-HNSC', 
+         data.category = 'DNA Methylation')
+# to see resulting files
+output_query_TCGA <- getResults(query_TCGA)
+
+#build a query to retrieve gene expression data by adding filters
+query_meth <-GDCquery(project= 'TCGA-HNSC', 
+                      data.category = 'DNA Methylation',
+                      data.type = 'Methylation Beta Value',
+                      platform = 'Illumina Human Methylation 450',
+                      access= 'open',
+                      barcode= c('TCGA-CN-A49A-01A-11D-A24I-05','TCGA-BA-4075-01A-01D-1433-05'))
+
+output_query_meth <- getResults(query_meth)
+
+#download data using GDCdownload function
+
+GDCdownload(query_meth)
+
+
+# plot probes showing differences in beta values between samples
+dna.meth <- GDCprepare(query_meth, summarizedExperiment = TRUE)
+assay(dna.meth)
+
+idx <- dna.meth %>% 
+  assay %>% 
+  rowVars() %>% 
+  order(decreasing = TRUE) %>% 
+  head(20)
+
+#plot a heatmap
+
+pheatmap(assay(dna.meth)[idx,])
+
+#visualizing mutations
+
+query_mutation <-GDCquery(project= 'TCGA-HNSC', 
+           data.category = 'Simple Nucleotide Variation',
+           access= 'open',
+           barcode= c('TCGA-CR-7377-01A-11D-2012-08','TCGA-CR-7377-10A-01D-2013-08'))
+
+output_query_mutation <- getResults(query_mutation)
+
+GDCdownload(query_mutation)
+
+maf <- GDCprepare(query_mutation, summarizedExperiment = TRUE)
+
+# maftools utils to read and create dashboard
+maftools.input <- read.maf(maf)
+
+plotmafSummary(maf = maftools.input,
+               addStat = 'median',
+               rmOutlier = TRUE,
+               dashboard = TRUE)
+
+# oncoprint
+oncoplot(maf = maftools.input,
+         top = 10,
+         removeNonMutated = TRUE)
