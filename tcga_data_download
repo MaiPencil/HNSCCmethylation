@@ -49,6 +49,16 @@ idx <- dna.meth %>%
 
 pheatmap(assay(dna.meth)[idx,])
 
+#to adjust the heatmap with font size, columns, width, etc
+##Create the heatmap without column labels
+pheatmap(assay(dna.meth)[idx,], 
+         labels_col = rep("", ncol(assay(dna.meth)[idx,])),  # Set column labels to empty strings
+         fontsize_col = 6,                                  # Reduce font size for column labels
+         angle_col = 45,                                    # Rotate column labels
+         cluster_cols = TRUE,                               # Cluster columns
+         width = 15,                                        # Increase plot width
+         height = 10)                                       # Increase plot height
+
 #visualizing mutations
 
 query_mutation <-GDCquery(project= 'TCGA-HNSC', 
