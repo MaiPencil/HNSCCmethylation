@@ -1,0 +1,29 @@
+# using cBioPortal to explore HPV status of HNSC using Bioconductor website
+library('cBioPortalData')
+
+# Establish connection to cBioPortal
+cbio <- cBioPortal()
+
+# List available studies to verify the correct study ID
+studies <- getStudies(cbio)
+head(studies)
+
+# Filter for studies related to HNSC
+hnsc_study <- studies[grep("HNSC", studies$studyId, ignore.case = TRUE), ]
+print(hnsc_study)
+
+# retrieve clinical data
+clinicdata_cbio <- clinicalData(cbio, "hnsc_tcga")
+
+# Check for HPV status column
+names(clinicdata_cbio)  # List all column names to find HPV status
+
+# Check for HPV status characters
+hpv_column1<- unique(clinicdata_cbio$HPV_STATUS_ISH)  # Check if HPV status is available, in this case I have two columns
+hpv_column2<- unique(clinicdata_cbio$HPV_STATUS_P16)
+
+# Filter data by HPV status if needed for the columns that you have
+hpv_positiveISH <- clinicdata_cbio %>% filter(HPV_STATUS_ISH == "Positive")
+hpv_negativeISH <- clinicdata_cbio %>% filter(HPV_STATUS_ISH == "Negative")
+hpv_positiveP16 <- clinicdata_cbio %>% filter(HPV_STATUS_P16 == "Positive")
+hpv_negativeP16 <- clinicdata_cbio %>% filter(HPV_STATUS_P16 == "Negative")
