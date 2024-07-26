@@ -9,6 +9,7 @@ library(maftools)
 library(SummarizedExperiment)
 library(sesameData)
 library(sesame)
+library(pheatmap)
 
 #get a list of projects and filter out for your primary objective (TCGA-HNSC)
 gdcprojects <- getGDCprojects()
