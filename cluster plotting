@@ -1,0 +1,80 @@
+# Load necessary libraries
+library(cBioPortalData)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load cBioPortal data
+cbio <- cBioPortal()
+
+# List available studies to verify the correct study ID
+studies <- getStudies(cbio)
+head(studies)
+
+# Retrieve methylation data for the TCGA-HNSC study
+# First, get available molecular profiles for the study
+molecular_profiles <- molecularProfiles(cbio, "hnsc_tcga")
+head(molecular_profiles)
+
+# Identify the correct molecular profile for methylation data
+methylation_profile_id <- "hnsc_tcga_methylation_hm450"
+
+# Retrieve all sample IDs for the study
+all_samples <- allSamples(cbio, studyId = "hnsc_tcga")
+head(all_samples)
+
+# List of Entrez Gene IDs
+entrez_gene_ids <- c(7157, 11023, 5290, 1029, 4851) # TP53, VAX1, PIK3A, CDKN2A, NOTCH1 are the genes I used
+
+# Fetch the methylation data
+methylation_data_list <- molecularData(cbio, molecularProfileIds = methylation_profile_id, entrezGeneIds = entrez_gene_ids, sampleIds = all_samples$sampleId)
+
+# Extract the methylation data from the list
+methylation_data <- methylation_data_list[[methylation_profile_id]]
+head(methylation_data)
+
+# Check the structure of methylation data
+str(methylation_data)
+
+# Handle missing values
+# Replace NA, NaN, and Inf with column means
+methylation_cols <- setdiff(names(methylation_data), "sampleId")
+methylation_data[methylation_cols] <- lapply(methylation_data[methylation_cols], function(x) {
+  x <- as.numeric(as.character(x))
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  x[is.nan(x)] <- mean(x, na.rm = TRUE)
+  x[is.infinite(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+})
+
+# Check for any remaining NA, NaN, or Inf values
+print(any(is.na(methylation_data)))
+print(any(is.nan(as.matrix(methylation_data))))
+print(any(is.infinite(as.matrix(methylation_data))))
+
+# Convert the methylation data to a matrix suitable for clustering
+methylation_matrix <- as.matrix(methylation_data[, methylation_cols])
+rownames(methylation_matrix) <- methylation_data$sampleId
+
+# Remove constant or zero columns
+constant_cols <- apply(methylation_matrix, 2, function(col) all(col == col[1]))
+methylation_matrix <- methylation_matrix[, !constant_cols]
+
+# Perform Principal Component Analysis (PCA) for clustering visualization
+pca_result <- prcomp(methylation_matrix, scale. = TRUE)
+
+# Create a data frame for ggplot2
+pca_data <- data.frame(SampleID = rownames(pca_result$x), PC1 = pca_result$x[,1], PC2 = pca_result$x[,2])
+
+# Perform k-means clustering
+set.seed(123)  # For reproducibility
+clusters <- kmeans(pca_data[, c("PC1", "PC2")], centers = 4)$cluster  # Adjust 'centers' to the desired number of clusters
+pca_data$Cluster <- as.factor(clusters)
+
+# Plot PCA with clusters
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(size = 3) +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "PCA of Methylation Data with Clusters",
+       x = "Principal Component 1",
+       y = "Principal Component 2") +
+  theme_minimal()
