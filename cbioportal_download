@@ -15,6 +15,7 @@ print(hnsc_study)
 # retrieve clinical data
 clinicdata_cbio <- clinicalData(cbio, "hnsc_tcga")
 
+##Example of checking clinical data via R
 # Check for HPV status column
 names(clinicdata_cbio)  # List all column names to find HPV status
 
