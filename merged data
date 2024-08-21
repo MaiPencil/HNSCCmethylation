@@ -1,0 +1,19 @@
+#load necessary libraries
+library(TCGAbiolinks)
+library(dplyr)
+
+#double check your structure of both datasets
+str(clinical.manifest)
+str(methylation.manifest)
+
+#merge clinical and methylation data
+##since both sets have a column called "id", we convert to a consistent format as needed
+###in this case I got rid of the dashes for consistency
+
+clinical.manifest$V1 <- gsub("-", "", clinical.manifest$V1)
+methylation.manifest$V1 <- gsub("-","",methylation.manifest$V1)
+
+merged_data <- merge(clinical.manifest, methylation.manifest, by = c("V1","V2","V3","V4","V5"), all = TRUE)
+
+#renamed my columns
+colnames(merged_data) <- c("id","filename","md5","size","state")
