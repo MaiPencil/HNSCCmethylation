@@ -1,0 +1,20 @@
+## MDS example that shows distance between points instead of variance
+## normally uses euclidean strategies in a low dimension scale that highly preserves the original from high dimensional space
+## this is based off my methylation data frame
+
+# Compute distance matrix
+dist_matrix <- dist(t(met))  # `t(met)` transposes the matrix to have samples as rows
+
+# Perform MDS
+mds_results <- cmdscale(dist_matrix, k = 2)  # `k` specifies the number of dimensions (usually 2 for plotting)
+
+# Convert MDS results to a data frame
+mds_df <- data.frame(MDS1 = mds_results[,1], MDS2 = mds_results[,2])
+
+# Plot using ggplot2
+library(ggplot2)
+ggplot(mds_df, aes(x = MDS1, y = MDS2)) +
+  +     geom_point() +
+  +     labs(title = "MDS Plot", x = "Dimension 1", y = "Dimension 2") +
+  +     theme_minimal()
+
