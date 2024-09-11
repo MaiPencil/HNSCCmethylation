@@ -1,0 +1,73 @@
+## differential methylation analysis with probes
+## as one example of variables to compare, I will be looking at the clinical stage for differential methylation analysis
+# define groups based on AJCC clinical stage (stage II vs Stage IV)
+clinical$stage_group <- ifelse(clinical$ajcc_clinical_stage %in% c("Stage II"), "Stage II", "Stage IV")
+
+#check how many samples are in each group
+table(clinical$stage_group)
+
+# Ensure methylation data and clinical data are aligned by sample ID (barcode)
+met_filtered <- met[, colnames(met) %in% clinical$barcode]
+
+# Subset clinical data to match the methylation samples
+clinical_filtered <- clinical[clinical$barcode %in% colnames(met_filtered), ]
+
+# Create a design matrix for the comparison, Stage II vs Stage IV
+design <- model.matrix(~ 0 + clinical_filtered$stage_group)
+colnames(design) <- levels(factor(clinical_filtered$stage_group))
+
+# Fit the model
+fit <- lmFit(met_filtered, design)
+
+# Replace spaces with underscores in the stage group variable
+clinical_filtered$stage_group <- gsub(" ", "_", clinical_filtered$stage_group)
+
+# Redefine the design matrix with valid names
+design <- model.matrix(~ 0 + clinical_filtered$stage_group)
+colnames(design) <- levels(factor(clinical_filtered$stage_group))
+
+# Create the contrast using the valid names (Stage_IV vs. Stage_II)
+contrast_matrix <- makeContrasts(StageIV_vs_StageII = Stage_IV - Stage_II, levels = design)
+
+# Fit the model and perform empirical Bayes moderation
+fit <- lmFit(met_filtered, design)
+fit2 <- contrasts.fit(fit, contrast_matrix)
+fit2 <- eBayes(fit2)
+
+# Get the top differentially methylated probes
+top_table <- topTable(fit2, adjust.method = "BH", number = Inf)
+
+# View the results
+head(top_table)
+
+# Volcano plot
+library(ggplot2)
+ggplot(top_table, aes(x = logFC, y = -log10(P.Value))) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Volcano Plot: Differential Methylation", x = "log Fold Change", y = "-log10 P-Value") +
+  theme_minimal()
+
+# Extract the top 20 probes based on adjusted p-value
+top_20_probes <- top_table[order(top_table$adj.P.Val), ][1:20, ]
+
+# Get the row names (probes) of the top 20
+top_20_probe_names <- rownames(top_20_probes)
+
+# Subset the methylation data to only the top 20 probes
+met_top_20 <- met_filtered[rownames(met_filtered) %in% top_20_probe_names, ]
+
+# Scale the methylation data
+met_top_20_scaled <- t(scale(t(met_top_20)))  # Transpose, scale, then transpose back
+
+# Clinical annotation: stage group
+annotation <- data.frame(Stage = clinical_filtered$stage_group)
+rownames(annotation) <- clinical_filtered$barcode  # Make sure rownames match sample names in met_top_20_scaled
+
+# Create the heatmap with clinical annotation
+pheatmap(met_top_20_scaled,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_rownames = TRUE,
+         show_colnames = FALSE,
+         annotation_col = annotation,  # Add stage group annotation
+         main = "Heatmap of Top 20 Differentially Methylated Probes")
